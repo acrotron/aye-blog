@@ -3,7 +3,7 @@ title: "Vision behind Aye Chat ‐{•!•}‐"
 date: 2025-11-03
 draft: false
 author: "Vyacheslav Mayorskiy, dev team"
-summary: "Our vision for the future of AI code generatorsi."
+summary: "Our vision for the future of AI code generators."
 tags: ["ai", "vision", "ai assistant", "future"]
 ---
 **Aye Chat is built on a simple belief: the next leap in software creation won’t come from new editors or frameworks — it will come from a new kind of collaboration between developers and intelligent systems.**
@@ -19,9 +19,9 @@ Our vision is to move coding from cautious supervision to confident collaboratio
 
 **Aye Chat** is an open-source, AI-powered terminal workspace that brings the power of AI directly into your command-line workflow. Edit files, run commands, and chat with your codebase without ever leaving the terminal.
 
-Feedback and repo starts are welcome.
+### Support Us 🫶
 
-**GitHub**: [https://github.com/acrotron/aye-chat](https://github.com/acrotron/aye-chat/tree/main#aye-chat-ai-powered-terminal-workspace)
-
+*   **Star 🌟 our [GitHub repository](https://github.com/acrotron/aye-chat#aye-chat-ai-powered-terminal-workspace).** It helps new users discover Aye Chat.
+*   **Spread the word 🗣️.** Share Aye Chat on social media and recommend it to your friends.
 ---
 

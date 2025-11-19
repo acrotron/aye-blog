@@ -1,13 +1,11 @@
 ---
 title: "The Optimistic Workflow: How Aye Chat Reimagines AI-Assisted Development"
-date: 2025-11-20
+date: 2025-11-09
 draft: false
 author: "Vyacheslav Mayorskiy, dev team"
 summary: "A deep dive into Aye Chat's 'optimistic workflow,' where AI changes are applied instantly and made safe by a robust, automatic snapshot and restore system."
 tags: ["workflow", "ux", "design-philosophy"]
 ---
-
-## Overview
 
 Traditional AI coding assistants follow a cautious, multi-step process: you prompt, the AI suggests, you copy, you paste, and you review. This workflow, while safe, is riddled with friction. It treats the AI as an untrusted outsider whose work must be manually chaperoned into the codebase.
 
@@ -17,7 +15,7 @@ This post is a deep dive into the mechanics of our optimistic workflow, explorin
 
 ## Part 1: The Undo Button on Steroids: The Snapshot Engine
 
-Letting an AI write directly to your files sounds scary. What if it misunderstands and wipes out a critical function? The only way this optimistic approach works is if you have a perfect, instant undo button. That's the job of our snapshot engine, implemented in `aye/model/snapshot.py`.
+Letting an AI write directly to your files sounds scary. What if it misunderstands and wipes out a critical function? The only way this optimistic approach works is if you have a perfect, instant undo button. That's the job of our snapshot engine, implemented in [aye/model/snapshot.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/snapshot.py).
 
 ### How It Works
 
@@ -198,7 +196,8 @@ This allows developers to stay in a state of flow, iterating on ideas at the spe
 
 **Aye Chat** is an open-source, AI-powered terminal workspace that brings the power of AI directly into your command-line workflow. Edit files, run commands, and chat with your codebase without ever leaving the terminal.
 
-Feedback and repo starts are welcome.
+### Support Us 🫶
 
-**GitHub**: [https://github.com/acrotron/aye-chat](https://github.com/acrotron/aye-chat/tree/main#aye-chat-ai-powered-terminal-workspace)
+*   **Star 🌟 our [GitHub repository](https://github.com/acrotron/aye-chat#aye-chat-ai-powered-terminal-workspace).** It helps new users discover Aye Chat.
+*   **Spread the word 🗣️.** Share Aye Chat on social media and recommend it to your friends.
 ---

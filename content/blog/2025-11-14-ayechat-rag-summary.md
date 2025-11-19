@@ -62,9 +62,9 @@ This design combines a local-first approach with progressive indexing and resour
 
 **Aye Chat** is an open-source, AI-powered terminal workspace that brings the power of AI directly into your command-line workflow. Edit files, run commands, and chat with your codebase without ever leaving the terminal.
 
-Feedback and repo starts are welcome.
+### Support Us 🫶
 
-**GitHub**: [https://github.com/acrotron/aye-chat](https://github.com/acrotron/aye-chat/tree/main#aye-chat-ai-powered-terminal-workspace)
-
+*   **Star 🌟 our [GitHub repository](https://github.com/acrotron/aye-chat#aye-chat-ai-powered-terminal-workspace).** It helps new users discover Aye Chat.
+*   **Spread the word 🗣️.** Share Aye Chat on social media and recommend it to your friends.
 ---
 
