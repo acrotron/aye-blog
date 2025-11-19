@@ -1,4 +1,4 @@
-baseURL = 'https://acrotron.github.io/aye-blog/'
+baseURL = 'https://blog.ayechat.ai/'
 languageCode = 'en-us'
 title = 'Aye Chat: AI-powered terminal workspace'
 theme = 'PaperMod'
