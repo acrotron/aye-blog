@@ -2,21 +2,16 @@
 title: "How We Built a Local-First, Privacy-Focused RAG for Our AI Terminal"
 date: 2025-11-16
 draft: false
-summary: "A detailed exploration of the design and implementation of the Retrieval-Augmented Generation (RAG) system in Aye Chat, focusing on privacy, performance, and user experience."
+author: "Vyacheslav Mayorskiy, Aye Chat dev team"
+summary: "A detailed exploration of the design and implementation of the Retrieval-Augmented Generation (RAG) system in Aye Chat, AI-powered terminal workspace, focusing on privacy, performance, and user experience."
 tags: ["rag", "ai", "indexing", "privacy", "deep-dive"]
 ---
 
-## Overview
+Large Language Models (LLMs) are incredibly powerful, but they have a fundamental blind spot: they have no idea what's in your project's codebase. It's like having a brilliant but amnesiac assistant. You can paste code into the prompt, but that's slow and clunky. So, how can an AI assistant give truly helpful, context-aware answers about *your* code?
 
-This document details the design and implementation of the Retrieval-Augmented Generation (RAG) system in Aye Chat, an AI coding assistant. The RAG system addresses the core challenge of providing Large Language Models (LLMs) with project-specific context. Our solution prioritizes privacy, performance, and user experience by using a local-first approach. Key components include a lightweight, on-device ONNX embedding model and the embeddable ChromaDB vector database, which avoid dependencies on external APIs and heavy deep learning frameworks.
+The answer is a technique called **Retrieval-Augmented Generation (RAG)**. In a nutshell, RAG supercharges an LLM's prompt with relevant information. For Aye Chat, this means automatically finding the most relevant bits of your code and bundling them with your question.
 
-The architecture features a two-phase progressive indexing strategy: an initial, rapid coarse indexing of entire files for immediate availability, followed by a background process that refines the index with **semantic, AST-based chunks (e.g., functions, classes) using `tree-sitter`**. To ensure a seamless user experience, all indexing is performed in low-priority, daemonized background threads, with CPU usage limits and interruptible processing that saves progress to disk. Finally, we intelligently pack the most relevant code into the LLM prompt, managing context window size with soft and hard limits, while also providing an escape hatch to include all files when needed. The result is a powerful, context-aware, and non-intrusive coding assistant for the terminal.
-
-Large Language Models (LLMs) are incredibly powerful, but they have a fundamental limitation when it comes to helping with software development: they are stateless and lack awareness of your project's codebase. You can paste code into the prompt, but this is manual, cumbersome, and limited by context window sizes. How can a coding assistant provide truly helpful, context-aware answers about *your* code?
-
-The answer is **Retrieval-Augmented Generation (RAG)**. At its core, RAG is a technique that enhances an LLM's prompt with relevant, externally retrieved information. For Aye Chat, this means automatically finding the most relevant source code from your project and including it with your question, giving the LLM the context it needs to provide accurate, insightful responses.
-
-This blog post is a deep dive into how we designed and built the RAG intelligence inside Aye Chat. We'll explore the key decisions, the technical challenges, and the nuances that make the system both powerful and user-friendly.
+This post is a deep dive into how we built the RAG system inside Aye Chat. We'll walk you through the key decisions, the technical hurdles, and the little details that make our approach private, fast, and - most importantly - unintrusive.
 
 ## Part 1: Choosing the Right Tools for the Job
 
@@ -26,11 +21,11 @@ A RAG system has two primary components: an **embedding model** to convert text 
 
 Our first major decision was whether to use a public API for embeddings (like OpenAI's) or a local, on-device model. We chose the local-first approach for several key reasons:
 
-1.  **Privacy:** Your source code is your intellectual property. Sending it to a third-party service for embedding raises privacy concerns. A local model ensures your code never leaves your machine.
+1.  **Your Code Stays Your Code.** This was non-negotiable for us. Your source code is your secret sauce, and we believe it should never leave your machine. Using a third-party API for a core feature like this was simply not an option.
 2.  **Cost & Rate-Limiting:** API-based embeddings can become expensive, especially for large projects that require frequent re-indexing. They are also subject to rate limits, which can slow down the initial indexing process.
 3.  **Simplicity:** We wanted Aye Chat to be a self-contained, easy-to-install command-line tool. Adding dependencies on external APIs for core functionality complicates the setup and user experience.
 
-With the local approach decided, we needed a model that was effective but also lightweight. A major goal was to avoid forcing users to install heavy frameworks like PyTorch or TensorFlow, which can be a significant barrier. This led us to select `ONNXMiniLM_L6_V2`, a model available in the ONNX (Open Neural Network Exchange) format. As seen in `aye/model/vector_db.py`, this model is conveniently packaged with ChromaDB and runs on a lightweight ONNX runtime, sidestepping the need for multi-gigabyte deep learning libraries.
+With the local approach decided, we needed a model that was effective but also lightweight. A major goal was to avoid forcing users to install heavy frameworks like PyTorch or TensorFlow, which can be a significant barrier. This led us to select `ONNXMiniLM_L6_V2`, a model available in the ONNX (Open Neural Network Exchange) format. As seen in [aye/model/vector_db.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/vector_db.py), this model is conveniently packaged with ChromaDB and runs on a lightweight ONNX runtime, sidestepping the need for multi-gigabyte deep learning libraries.
 
 ```python
 # aye/model/vector_db.py
@@ -78,11 +73,14 @@ def initialize_index(root_path: Path) -> Any:
 
 ## Part 2: The Architecture of Intelligence
 
-With the tools selected, we designed the indexing and search process. The `IndexManager` class in `aye/model/index_manager.py` is the heart of this system.
+With the tools selected, we designed the indexing and search process. The `IndexManager` class in [aye/model/index_manager.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/index_manager.py) is the heart of this system.
 
 ### Creating the Index: A Two-Phase Approach
 
-Indexing an entire project can be time-consuming. We didn't want users to wait minutes before they could start using the chat. To solve this, we implemented a **two-phase progressive indexing strategy**.
+We didn't want you staring at a progress bar, so we came up with a two-phase strategy. Think of it like unpacking after a move.
+
+*   **Phase 1 (Coarse Indexing):** First, you quickly dump all the boxes in the correct rooms. This is our 'coarse' pass where we index each *entire file*. It's super fast and gives you a usable index almost instantly.
+*   **Phase 2 (Refined Indexing):** Then, in the background, you start the real work: unpacking each box. This is our 'refined' pass, where we use `tree-sitter` to break files down into smart, semantic chunks like functions and classes. The search quality gets better and better as this process runs.
 
 **Phase 1: Coarse Indexing**
 When Aye Chat starts, it performs a quick scan of the project to find new or modified files. For each of these files, it creates a *single* vector for the *entire file content* and adds it to the index. The document ID is simply the file path.
@@ -101,12 +99,12 @@ def update_index_coarse(
     collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
 ```
 
-This process is extremely fast. It gives the user a usable, albeit imprecise, search index almost immediately. Searching at this stage can identify which *files* are relevant, even if it can't pinpoint the exact lines of code.
+This process is very fast. It gives the user a usable, albeit imprecise, search index almost immediately. Searching at this stage can identify which *files* are relevant, even if it can't pinpoint the exact lines of code.
 
 **Phase 2: Refined Indexing with `tree-sitter`**
-After the coarse pass is complete, a background process kicks in. This is where the real intelligence lies. Instead of simply splitting files by lines, we now use `tree-sitter` to perform **semantic chunking**.
+After the coarse pass is complete, another background process kicks in. This is where the real intelligence lies. Instead of simply splitting files by lines, we now use `tree-sitter` to perform **semantic chunking**.
 
-As seen in `aye/model/ast_chunker.py`, we parse the source code into an Abstract Syntax Tree (AST). We then run language-specific queries against this tree to extract meaningful, self-contained code blocks like functions, classes, methods, or interfaces.
+As seen in [aye/model/ast_chunker.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/ast_chunker.py), we parse the source code into an Abstract Syntax Tree (AST). We then run language-specific queries against this tree to extract meaningful, self-contained code blocks like functions, classes, methods, or interfaces.
 
 ```python
 # aye/model/ast_chunker.py
@@ -127,7 +125,7 @@ CHUNK_QUERIES = {
 
 Each of these AST nodes becomes a "document" in our vector database. This is a massive improvement over naive chunking because each vector now represents a complete logical unit of code, leading to far more precise and relevant search results.
 
-The `refine_file_in_index` function in `aye/model/vector_db.py` orchestrates this: it deletes the old whole-file entry and upserts the new, semantically-chunked documents. For languages not yet supported by our AST chunker, or if parsing fails, we gracefully fall back to a simple line-based chunker to ensure all files are indexed.
+The `refine_file_in_index` function in [aye/model/vector_db.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/vector_db.py) orchestrates this: it deletes the old whole-file entry and upserts the new, semantically-chunked documents. For languages not yet supported by our AST chunker, or if parsing fails, we gracefully fall back to a simple line-based chunker to ensure all files are indexed.
 
 ```python
 # aye/model/vector_db.py
@@ -161,14 +159,14 @@ A powerful RAG system is useless if it makes the host application slow or unreli
 
 ### Working in the Shadows: Background Processing
 
-All indexing work happens in a background thread, as initiated in `aye/controller/repl.py`. A standard `ThreadPoolExecutor` would create non-daemon threads, which would prevent the application from exiting until the indexing was complete. To fix this, we implemented a custom `DaemonThreadPoolExecutor` in `aye/model/index_manager.py`. This small but critical change ensures that background indexing is automatically terminated when the user quits the chat.
+All indexing work happens in a background thread, as initiated in [aye/controller/repl.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/controller/repl.py). A standard `ThreadPoolExecutor` would create non-daemon threads, which would prevent the application from exiting until the indexing was complete. To fix this, we implemented a custom `DaemonThreadPoolExecutor` in [aye/model/index_manager.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/index_manager.py). This small but critical change ensures that background indexing is automatically terminated when the user quits the chat.
 
 ### Playing Nice: Limiting CPU Impact
 
 Calculating embeddings is CPU-intensive. To prevent Aye Chat from hogging system resources and causing UI lag, we implemented two key constraints:
 
 1.  **Worker Count:** We limit the number of background indexing threads to half the available CPU cores, with a maximum of 4. This leaves plenty of CPU cycles for the main application and other user tasks.
-2.  **Process Priority:** On POSIX-compliant systems (like Linux and macOS), we use `os.nice(5)` to lower the priority of the background worker threads. This tells the operating system to prioritize other processes (like the user's terminal) over our indexing work.
+2.  **Process Priority:** On POSIX-compliant systems (like Linux and macOS), we use `os.nice(5)` to lower the priority of the background worker threads. We're essentially telling the operating system, 'Hey, this indexing is important, but don't let it slow down whatever the user is actively doing.' It's all about being a good citizen on your machine.
 
 ```python
 # aye/model/index_manager.py
@@ -183,7 +181,7 @@ MAX_WORKERS = min(4, max(1, CPU_COUNT // 2))
 
 ### Never Starting Over: Robust, Interruptible Indexing
 
-Initial indexing of a large project can still take time. If the user quits halfway through, they shouldn't have to start from scratch next time. We built robustness into the process by regularly saving the state of our file hash index to disk. The `IndexManager` saves its progress to `.aye/file_index.json` after every 20 files (`SAVE_INTERVAL`). If the process is interrupted, the next run will pick up right where it left off, only needing to process the remaining files.
+Initial indexing of a large project can and will still take time. If the user quits halfway through, they shouldn't have to start from scratch next time. We built robustness into the process by regularly saving the state of our file hash index to disk. The `IndexManager` saves its progress to `.aye/file_index.json` after every 20 files (`SAVE_INTERVAL`). If the process is interrupted, the next run will pick up right where it left off, only needing to process the remaining files.
 
 ## Part 4: From Search Results to LLM Prompt
 
@@ -193,7 +191,7 @@ First, we create a unique, ranked list of *files* from the returned chunks. A fi
 
 Then, we iterate through this list of files, adding their full content to the context. This is where we manage the context window size with a system of soft and hard limits:
 
-*   **Soft Limit (`CONTEXT_TARGET_SIZE`):** We aim to pack about 100KB of context. The loop continues adding files as long as the total size is below this threshold.
+*   **Soft Limit (`CONTEXT_TARGET_SIZE`):** We aim to pack about 180KB of context. The loop continues adding files as long as the total size is below this threshold.
 *   **Hard Limit (`CONTEXT_HARD_LIMIT`):** To prevent API errors from a payload that is too large, we have a hard limit of 200KB. Before adding a file, we check if it would push the total size over this limit. If so, we skip that file and try the next, smaller one in the ranked list.
 
 This logic ensures we prioritize the most relevant files while respecting API limitations.
@@ -212,9 +210,9 @@ if current_size + file_size > CONTEXT_HARD_LIMIT:
     continue # Skip this file and try the next one.
 ```
 
-Finally, for full user control, we added the `/all` command. If a user's prompt starts with `/all`, we bypass RAG entirely and include every single file in the project that matches the file mask. This is a powerful escape hatch for when the user knows better than the search algorithm.
+Finally, if a project is small and total size is under `CONTEXT_HARD_LIMIT`, there is no need for any of this: in that case, we bypass RAG entirely and include every single file in the project that matches the file mask.
 
-## Part 5: Known Limitations and Future Work
+## Part 5: The Road Ahead
 
 This implementation successfully establishes a robust, performant, and privacy-preserving foundation. With the move to AST-based semantic chunking, we've significantly improved the core retrieval logic. However, there are always opportunities for enhancement. Here is our roadmap for making retrieval quality even better.
 
@@ -228,7 +226,7 @@ While our `tree-sitter` implementation covers many popular languages, the qualit
 
 Currently, the system retrieves relevant chunks but then includes the *entire content of the parent file* in the LLM prompt. While simple and often effective (as it provides broader context), this can be inefficient. If a relevant chunk is found in a large file, the prompt becomes flooded with irrelevant code, which can confuse the LLM and lead to the "lost in the middle" problem where critical information is ignored.
 
-**The Path Forward:** We will shift to a more surgical approach. Instead of sending the entire file, we will assemble context directly from the top-k retrieved chunks. We can also experiment with including limited surrounding context, such as the parent function signature or class definition for a given chunk, to provide local awareness without overwhelming the context window.
+**The Path Forward:** Right now, when we find a relevant code snippet, we bring its whole file along for the ride. This provides great context, but it's like inviting a friend to a party and having them bring their entire extended family. Our next step is to be more surgical. Instead of sending the entire file, we will assemble context directly from the top-k retrieved chunks, perhaps including their immediate neighbors (like a parent function or class definition) to provide local awareness without overwhelming the context window.
 
 ### 3. Exploring Code-Specific Embedding Models
 
@@ -244,11 +242,11 @@ The current ranking logic is simple: rank files based on their single highest-sc
 
 ## Conclusion
 
-Building the RAG system for Aye Chat was a journey of careful trade-offs. The initial version successfully establishes a performant, private, and non-intrusive foundation. By choosing a lightweight local model and database, implementing a progressive background indexing strategy, and carefully managing system resources, we've created a feature that provides context-aware assistance without getting in the user's way. The current implementation is a strong starting point, and we are excited to build upon it by incorporating the more advanced retrieval techniques outlined in our roadmap. The result will be an even smarter, more helpful coding companion for the command line.
+Developing the RAG system for Aye Chat has been an exercise in balancing power, privacy, and performance. Our focus has been on creating a local-first, non-intrusive tool that aligns with our core principles. The current implementation provides a solid foundation for code-aware assistance, and the roadmap we've laid out shows our path toward making it even more precise and helpful.
 
 ---
 ## About Aye Chat
 
 Aye Chat is an open-source, AI-powered terminal workspace that brings the power of AI directly into your command-line workflow. Edit files, run commands, and chat with your codebase without ever leaving the terminal.
 
-Find the project on GitHub: [https://github.com/acrotron/aye-chat](https://github.com/acrotron/aye-chat)
+Find the project on GitHub: [https://github.com/acrotron/aye-chat](https://github.com/acrotron/aye-chat/tree/main#aye-chat-ai-powered-terminal-workspace)
