@@ -2,7 +2,7 @@
 title: "How We Built a Local-First, Privacy-Focused RAG for Our AI Terminal"
 date: 2025-11-16
 draft: false
-author: "Vyacheslav Mayorskiy, Aye Chat dev team"
+author: "Vyacheslav Mayorskiy, dev team"
 summary: "A detailed exploration of the design and implementation of the Retrieval-Augmented Generation (RAG) system in Aye Chat, AI-powered terminal workspace, focusing on privacy, performance, and user experience."
 tags: ["rag", "ai", "indexing", "privacy", "deep-dive"]
 ---
@@ -247,6 +247,10 @@ Developing the RAG system for Aye Chat has been an exercise in balancing power, 
 ---
 ## About Aye Chat
 
-Aye Chat is an open-source, AI-powered terminal workspace that brings the power of AI directly into your command-line workflow. Edit files, run commands, and chat with your codebase without ever leaving the terminal.
+**Aye Chat** is an open-source, AI-powered terminal workspace that brings the power of AI directly into your command-line workflow. Edit files, run commands, and chat with your codebase without ever leaving the terminal.
 
-Find the project on GitHub: [https://github.com/acrotron/aye-chat](https://github.com/acrotron/aye-chat/tree/main#aye-chat-ai-powered-terminal-workspace)
+Feedback and repo starts are welcome.
+
+**GitHub**: [https://github.com/acrotron/aye-chat](https://github.com/acrotron/aye-chat/tree/main#aye-chat-ai-powered-terminal-workspace)
+
+---
