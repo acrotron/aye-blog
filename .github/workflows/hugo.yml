@@ -25,7 +25,7 @@
         steps:
           - name: Install Hugo CLI
             run: |
-              wget -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v0.125.4/hugo_extended_0.152.2_linux-amd64.deb \
+              wget -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v0.152.2/hugo_extended_0.152.2_linux-amd64.deb \
               && sudo dpkg -i ${{ runner.temp }}/hugo.deb
           - name: Checkout
             uses: actions/checkout@v4
