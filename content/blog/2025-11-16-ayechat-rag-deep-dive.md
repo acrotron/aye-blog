@@ -17,7 +17,7 @@ This post is a deep dive into how we built the RAG system inside Aye Chat. We'll
 
 A RAG system has two primary components: an **embedding model** to convert text into numerical representations (vectors) and a **vector database** to store and efficiently search these vectors.
 
-### The Brains: The Embedding Model
+### The Embedding Model
 
 Our first major decision was whether to use a public API for embeddings (like OpenAI's) or a local, on-device model. We chose the local-first approach for several key reasons:
 
@@ -40,7 +40,7 @@ from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
     embedding_function = ONNXMiniLM_L6_V2()
 ```
 
-### The Memory Palace: The Vector Database
+### The Vector Database
 
 Next, we needed a vector database. The requirements were clear: it had to be embeddable, run locally, be easy to install (`pip install ...`), and perform well.
 
@@ -71,7 +71,7 @@ def initialize_index(root_path: Path) -> Any:
     return collection
 ```
 
-## Part 2: The Architecture of Intelligence
+## Part 2: The Indexing Architecture
 
 With the tools selected, we designed the indexing and search process. The `IndexManager` class in [aye/model/index_manager.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/index_manager.py) is the heart of this system.
 
@@ -102,7 +102,7 @@ def update_index_coarse(
 This process is very fast. It gives the user a usable, albeit imprecise, search index almost immediately. Searching at this stage can identify which *files* are relevant, even if it can't pinpoint the exact lines of code.
 
 **Phase 2: Refined Indexing with `tree-sitter`**
-After the coarse pass is complete, another background process kicks in. This is where the real intelligence lies. Instead of simply splitting files by lines, we now use `tree-sitter` to perform **semantic chunking**.
+After the coarse pass is complete, another background process kicks in. This is where the semantic processing happens. Instead of simply splitting files by lines, we now use `tree-sitter` to perform **semantic chunking**.
 
 As seen in [aye/model/ast_chunker.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/ast_chunker.py), we parse the source code into an Abstract Syntax Tree (AST). We then run language-specific queries against this tree to extract meaningful, self-contained code blocks like functions, classes, methods, or interfaces.
 
@@ -157,11 +157,11 @@ When the user enters a prompt, the `llm_invoker` calls the `query` method of the
 
 A powerful RAG system is useless if it makes the host application slow or unreliable. We invested significant effort into making the indexing process as unobtrusive as possible.
 
-### Working in the Shadows: Background Processing
+### Background Processing
 
 All indexing work happens in a background thread, as initiated in [aye/controller/repl.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/controller/repl.py). A standard `ThreadPoolExecutor` would create non-daemon threads, which would prevent the application from exiting until the indexing was complete. To fix this, we implemented a custom `DaemonThreadPoolExecutor` in [aye/model/index_manager.py](https://github.com/acrotron/aye-chat/blob/main/src/aye/model/index_manager.py). This small but critical change ensures that background indexing is automatically terminated when the user quits the chat.
 
-### Playing Nice: Limiting CPU Impact
+### Limiting CPU Impact
 
 Calculating embeddings is CPU-intensive. To prevent Aye Chat from hogging system resources and causing UI lag, we implemented two key constraints:
 
@@ -179,7 +179,7 @@ def _set_low_priority():
 MAX_WORKERS = min(4, max(1, CPU_COUNT // 2))
 ```
 
-### Never Starting Over: Robust, Interruptible Indexing
+### Robust, Resumable Indexing
 
 Initial indexing of a large project can and will still take time. If the user quits halfway through, they shouldn't have to start from scratch next time. We built robustness into the process by regularly saving the state of our file hash index to disk. The `IndexManager` saves its progress to `.aye/file_index.json` after every 20 files (`SAVE_INTERVAL`). If the process is interrupted, the next run will pick up right where it left off, only needing to process the remaining files.
 
